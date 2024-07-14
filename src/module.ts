@@ -35,9 +35,6 @@ export default defineNuxtModule<ModuleOptions>({
       return
     }
 
-    // find all worker files in the worker directory and create corresponding workers in the runtime config
-    // the worker files should export a default function that takes a Job object and returns a Promise
-    // the default function should also accept additional worker options (if provided) as parameters
     const workerFiles = (await readdir(workerDir)).filter(file => file.endsWith('.ts'))
 
     addTypeTemplate({
