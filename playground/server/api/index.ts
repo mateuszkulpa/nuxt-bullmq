@@ -1,5 +1,3 @@
-import { useQueue } from '#imports'
-
 export default defineEventHandler(async () => {
   const videoQueue = useQueue('processVideo')
   await videoQueue.add('video-123', { filter: 'blur' })

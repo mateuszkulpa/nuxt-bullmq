@@ -1,4 +1,4 @@
-import { readdir } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import * as path from 'node:path'
@@ -11,6 +11,8 @@ import {
 } from '@nuxt/kit'
 import { Worker, type WorkerOptions } from 'bullmq'
 import { relative } from 'pathe'
+import createJITI from 'jiti'
+import type { Processor } from 'bullmq/dist/esm/interfaces'
 
 export interface ModuleOptions {
   connection: WorkerOptions['connection']
@@ -62,12 +64,23 @@ export type WorkerInputTypes = {
       config.alias['#workers'] = './workers'
     })
 
-    for (const file of workerFiles) {
-      const workerPath = await resolver.resolvePath(path.join(workerDir, file))
-      const workerName = file.replace(/\.(ts|js)$/, '')
-      const [workerHandler, workerOptions] = await import(workerPath)
-      logger.info(`Initializing BullMQ worker: ${workerName}`)
-      new Worker(workerName, workerHandler, { connection: options.connection, ...workerOptions } as WorkerOptions)
-    }
+    nuxt.hook('nitro:init', async ({ unimport, options: config }) => {
+      const jiti = createJITI(config.rootDir!, {
+        esmResolve: true,
+        interopDefault: true,
+        alias: config.alias,
+      })
+
+      for (const file of workerFiles) {
+        const workerPath = await resolver.resolvePath(path.join(workerDir, file))
+        const workerName = file.replace(/\.(ts|js)$/, '')
+        const injectedResult = await unimport?.injectImports(await readFile(workerPath, 'utf-8'))
+        if (!injectedResult) continue
+
+        const [workerHandler, workerOptions] = jiti.evalModule(injectedResult.code, { filename: workerPath }) as [Processor, WorkerOptions]
+        logger.info(`Initializing BullMQ worker: ${workerName}`)
+        new Worker(workerName, workerHandler, { ...workerOptions, connection: options.connection } as WorkerOptions)
+      }
+    })
   },
 })

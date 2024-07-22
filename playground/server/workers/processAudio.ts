@@ -1,6 +1,3 @@
-// TODO: support importing from #imports
-import { defineWorkerHandler } from '../../../src/runtime/server/utils/defineWorkerHandler'
-
 export default defineWorkerHandler<{ volume: number }>(async (job) => {
   console.log('Processing audio started...', job.data)
 
